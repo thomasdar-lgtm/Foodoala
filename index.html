@@ -20,7 +20,7 @@
   --r:14px;
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-html,body{background:var(--bg);color:var(--txt);font-family:'Raleway',sans-serif;min-height:100%}
+html,body{background:var(--bg);color:var(--txt);font-family:'Raleway',sans-serif;min-height:100%;overscroll-behavior-y:contain}
 body{padding-bottom:calc(74px + env(safe-area-inset-bottom))}
 header{position:sticky;top:0;z-index:20;background:linear-gradient(180deg,var(--bg) 70%,transparent);padding:14px 16px 10px;display:flex;align-items:center;gap:10px}
 header h1{font-weight:900;font-size:1.5rem;letter-spacing:.5px;display:flex;align-items:baseline;gap:0}
@@ -274,7 +274,7 @@ nav button.active{color:var(--yellow)}
 <div id="toast"></div>
 
 <script>
-const APP_VERSION='2.00';
+const APP_VERSION='2.01';
 const RAYONS=['Fruits & Légumes','Boucherie','Poissonnerie','Crèmerie','Épicerie','Boulangerie','Surgelés','Autre'];
 const JOURS=['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche'];
 const CUISINES=['Française','Italienne','Asiatique','Méditerranéenne','Mexicaine','Autre'];
@@ -1049,7 +1049,23 @@ function refreshAll(){
 document.getElementById('verTag').textContent=APP_VERSION;
 document.getElementById('verTag2').textContent=APP_VERSION;
 load();refreshAll();
-if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js');
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js').then(reg=>{
+    // Vérifie immédiatement s'il existe une version plus récente
+    reg.update();
+    // Revérifie à chaque retour au premier plan de l'app
+    document.addEventListener('visibilitychange',()=>{
+      if(document.visibilityState==='visible')reg.update();
+    });
+  });
+  // Dès qu'un nouveau service worker prend le contrôle, recharger une seule fois
+  let swRefreshing=false;
+  navigator.serviceWorker.addEventListener('controllerchange',()=>{
+    if(swRefreshing)return;
+    swRefreshing=true;
+    window.location.reload();
+  });
+}
 </script>
 <script src="https://accounts.google.com/gsi/client" async defer onload="gisLoaded()"></script>
 </body>
