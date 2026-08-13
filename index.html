@@ -274,7 +274,7 @@ nav button.active{color:var(--yellow)}
 <div id="toast"></div>
 
 <script>
-const APP_VERSION='2.01';
+const APP_VERSION='2.02';
 const RAYONS=['Fruits & Légumes','Boucherie','Poissonnerie','Crèmerie','Épicerie','Boulangerie','Surgelés','Autre'];
 const JOURS=['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche'];
 const CUISINES=['Française','Italienne','Asiatique','Méditerranéenne','Mexicaine','Autre'];
@@ -694,12 +694,25 @@ let state=null;
 function defaultState(){
   return{recettes:SEED.map((r,i)=>({id:'seed'+i,...r})),planning:{},courses:[],personnes:2,updatedAt:Date.now()};
 }
+function reconcileSeed(){
+  // Ajoute les recettes de base récemment introduites qui manquent encore dans
+  // l'état courant, sans jamais toucher aux recettes déjà présentes (perso ou modifiées).
+  if(!state.recettes)state.recettes=[];
+  const existingIds=new Set(state.recettes.map(r=>r.id));
+  let added=false;
+  SEED.forEach((r,i)=>{
+    const id='seed'+i;
+    if(!existingIds.has(id)){state.recettes.push({id,...r});added=true;}
+  });
+  return added;
+}
 function load(){
   try{const raw=localStorage.getItem('foodoala');state=raw?JSON.parse(raw):defaultState();}
   catch(e){state=defaultState();}
   if(!state.courses)state.courses=[];
   if(!state.planning)state.planning={};
   if(!state.personnes)state.personnes=2;
+  if(reconcileSeed())save();
 }
 function save(){
   state.updatedAt=Date.now();
@@ -1027,7 +1040,9 @@ async function driveLoad(silent){
       const remote=await r.json();
       if(remote&&remote.recettes){
         if(!silent||((remote.updatedAt||0)>(state.updatedAt||0))){
-          state=remote;localStorage.setItem('foodoala',JSON.stringify(state));refreshAll();
+          state=remote;
+          reconcileSeed();
+          localStorage.setItem('foodoala',JSON.stringify(state));refreshAll();
           if(!silent)toast('Chargé depuis Drive ✓');
         }else driveSave(false);
       }
