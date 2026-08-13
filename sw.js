@@ -1,5 +1,6 @@
-const CACHE_VERSION = 'foodoala-v1.00';
-const ASSETS = ['./', './index.html', './manifest.json'];
+const CACHE_VERSION = 'foodoala-v1.10';
+const ASSETS = ['./', './index.html', './manifest.json',
+  './icons/icon-32.png', './icons/icon-180.png', './icons/icon-192.png', './icons/icon-512.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE_VERSION).then(c => c.addAll(ASSETS)));
