@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'foodoala-v1.21';
+const CACHE_VERSION = 'foodoala-v1.22';
 const ASSETS = ['./', './index.html', './manifest.json',
   './icons/icon-32.png', './icons/icon-180.png', './icons/icon-192.png', './icons/icon-512.png'];
 
