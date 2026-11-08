@@ -274,7 +274,7 @@ nav button.active{color:var(--yellow)}
 <div id="toast"></div>
 
 <script>
-const APP_VERSION='2.02';
+const APP_VERSION='2.03';
 const RAYONS=['Fruits & Légumes','Boucherie','Poissonnerie','Crèmerie','Épicerie','Boulangerie','Surgelés','Autre'];
 const JOURS=['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche'];
 const CUISINES=['Française','Italienne','Asiatique','Méditerranéenne','Mexicaine','Autre'];
@@ -690,6 +690,7 @@ const SEED=[
 ];
 
 /* ============ STATE ============ */
+function norm(t){return String(t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/œ/g,'oe').replace(/æ/g,'ae');}
 let state=null;
 function defaultState(){
   return{recettes:SEED.map((r,i)=>({id:'seed'+i,...r})),planning:{},courses:[],personnes:2,updatedAt:Date.now()};
@@ -774,8 +775,8 @@ let pickTarget=null;
 function openPick(key,slot){pickTarget={key,slot};document.getElementById('mPickSearch').value='';renderPick('');document.getElementById('mPick').classList.add('open');}
 function closePick(){document.getElementById('mPick').classList.remove('open');}
 function renderPick(q){
-  q=(q||'').toLowerCase();
-  const list=state.recettes.filter(r=>r.nom.toLowerCase().includes(q)).sort((a,b)=>a.nom.localeCompare(b.nom));
+  q=norm(q);
+  const list=state.recettes.filter(r=>norm(r.nom).includes(q)).sort((a,b)=>a.nom.localeCompare(b.nom));
   document.getElementById('mPickList').innerHTML=list.map(r=>
     `<div class="rcard" onclick="pick('${r.id}')"><div><div class="rn">${r.nom}</div><div class="rm">${r.temps?r.temps+' min · ':''}${r.ingredients.length} ingrédients</div></div><span class="rcat">${r.cat}</span></div>`
   ).join('')||'<div class="empty">Aucune recette</div>';
@@ -795,10 +796,10 @@ function renderCatChips(){
     `<button class="chip${c===catFilter?' active':''}" onclick="catFilter='${c}';renderCatChips();renderRecettes()">${c}</button>`).join('');
 }
 function renderRecettes(){
-  const q=document.getElementById('rSearch').value.toLowerCase();
+  const q=norm(document.getElementById('rSearch').value);
   const list=state.recettes.filter(r=>
     (catFilter==='Toutes'||r.cat===catFilter)&&
-    r.nom.toLowerCase().includes(q)&&
+    norm(r.nom).includes(q)&&
     (!activeFilters.cuisine.length||activeFilters.cuisine.includes(r.cuisine))&&
     (!activeFilters.saison.length||(r.saison||['Toute saison']).some(s=>activeFilters.saison.includes(s)))&&
     (!activeFilters.difficulte.length||activeFilters.difficulte.includes(r.difficulte))
