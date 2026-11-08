@@ -1,10 +1,14 @@
-const CACHE_VERSION = 'foodoala-v2.03';
+const CACHE_VERSION = 'foodoala-v2.04';
 const ASSETS = ['./', './index.html', './manifest.json',
   './icons/icon-32.png', './icons/icon-180.png', './icons/icon-192.png', './icons/icon-512.png'];
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE_VERSION).then(c => c.addAll(ASSETS)));
-  self.skipWaiting();
+  e.waitUntil(caches.open(CACHE_VERSION).then(c => c.addAll(ASSETS.map(u => new Request(u, {cache: 'reload'})))));
+});
+
+// La nouvelle version attend le feu vert de l'utilisateur (bannière « Installer »)
+self.addEventListener('message', e => {
+  if (e.data && e.data.type === 'SKIP_WAITING') self.skipWaiting();
 });
 
 self.addEventListener('activate', e => {

@@ -117,11 +117,18 @@ nav button.active{color:var(--yellow)}
 .mrow>div{flex:1}
 .picklist{max-height:55vh;overflow-y:auto}
 .empty{color:var(--txt2);text-align:center;padding:30px 0;font-weight:600}
+#updBanner{position:fixed;left:12px;right:12px;top:calc(10px + env(safe-area-inset-top));z-index:70;display:none;align-items:center;gap:10px;background:var(--bg3);border:1px solid var(--yellow);border-radius:14px;padding:10px 12px;box-shadow:0 6px 24px rgba(0,0,0,.5)}
+#updBanner.show{display:flex}
+#updBanner .utxt{flex:1;font-size:.85rem;font-weight:800}
+#updBanner .utxt small{display:block;color:var(--txt2);font-weight:600;font-size:.7rem}
+#updBanner button{width:auto;margin:0;padding:9px 14px;font-size:.8rem}
+#updBanner .ulater{background:none;color:var(--txt2);padding:9px 6px}
 #toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:var(--yellow);color:#00071a;font-weight:900;padding:10px 18px;border-radius:12px;z-index:60;display:none;font-size:.85rem}
 .vtag{text-align:center;color:var(--txt2);font-size:.7rem;font-weight:700;margin-top:18px}
 </style>
 </head>
 <body>
+<div id="updBanner"><div class="utxt">Nouvelle version disponible<small>Installe-la quand tu veux</small></div><button class="btn yel" onclick="installUpdate()">Installer</button><button class="ulater" onclick="dismissUpdate()">Plus tard</button></div>
 
 <header>
   <img class="logo" src="icons/icon-192.png" alt="Foodoala">
@@ -178,6 +185,11 @@ nav button.active{color:var(--yellow)}
       <button class="btn yel" id="btnConnect" onclick="driveConnect()">Connecter Google Drive</button>
       <button class="btn sec" onclick="driveSave(true)">⬆️ Sauvegarder sur Drive</button>
       <button class="btn sec" onclick="driveLoad()">⬇️ Charger depuis Drive</button>
+    </div>
+    <div class="card">
+      <label>Mise à jour</label>
+      <div id="updStatus" style="font-size:.85rem;color:var(--txt2);font-weight:600;margin-bottom:4px">Version <span id="verTag3"></span></div>
+      <button class="btn sec" id="btnUpd" onclick="checkUpdate()">🔄 Rechercher une mise à jour</button>
     </div>
     <div class="card">
       <button class="btn sec" onclick="exportJson()">Exporter les données (JSON)</button>
@@ -274,7 +286,7 @@ nav button.active{color:var(--yellow)}
 <div id="toast"></div>
 
 <script>
-const APP_VERSION='2.03';
+const APP_VERSION='2.04';
 const RAYONS=['Fruits & Légumes','Boucherie','Poissonnerie','Crèmerie','Épicerie','Boulangerie','Surgelés','Autre'];
 const JOURS=['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche'];
 const CUISINES=['Française','Italienne','Asiatique','Méditerranéenne','Mexicaine','Autre'];
@@ -1064,22 +1076,58 @@ function refreshAll(){
 }
 document.getElementById('verTag').textContent=APP_VERSION;
 document.getElementById('verTag2').textContent=APP_VERSION;
+document.getElementById('verTag3').textContent=APP_VERSION;
 load();refreshAll();
+/* ============ MISE À JOUR (bannière + recherche manuelle) ============ */
+let swReg=null,swWaiting=null,updRequested=false;
+function showUpdate(w){
+  swWaiting=w;
+  document.getElementById('updBanner').classList.add('show');
+  document.getElementById('updStatus').textContent='Nouvelle version disponible';
+}
+function dismissUpdate(){document.getElementById('updBanner').classList.remove('show');}
+function installUpdate(){
+  if(!swWaiting)return;
+  updRequested=true;
+  swWaiting.postMessage({type:'SKIP_WAITING'});
+}
+function trackWorker(w){
+  w.addEventListener('statechange',()=>{
+    if(w.state==='installed'&&navigator.serviceWorker.controller)showUpdate(w);
+  });
+}
+async function checkUpdate(){
+  const btn=document.getElementById('btnUpd'),st=document.getElementById('updStatus');
+  if(!swReg){toast('Mises à jour indisponibles hors installation');return;}
+  btn.disabled=true;st.textContent='Recherche en cours…';
+  try{
+    await swReg.update();
+    if(swReg.waiting){showUpdate(swReg.waiting);toast('Mise à jour disponible');}
+    else if(swReg.installing){
+      const w=swReg.installing;
+      await new Promise(res=>{
+        if(w.state==='installed'||w.state==='redundant')return res();
+        w.addEventListener('statechange',()=>{if(w.state==='installed'||w.state==='redundant')res();});
+      });
+      if(swReg.waiting){showUpdate(swReg.waiting);toast('Mise à jour disponible');}
+      else st.textContent='Version '+APP_VERSION+' · à jour ✓';
+    }else{st.textContent='Version '+APP_VERSION+' · à jour ✓';toast('Foodoala est à jour ✓');}
+  }catch(e){st.textContent='Version '+APP_VERSION;toast('Recherche impossible (hors ligne ?)');}
+  btn.disabled=false;
+}
 if('serviceWorker' in navigator){
   navigator.serviceWorker.register('sw.js').then(reg=>{
-    // Vérifie immédiatement s'il existe une version plus récente
-    reg.update();
-    // Revérifie à chaque retour au premier plan de l'app
+    swReg=reg;
+    if(reg.waiting&&navigator.serviceWorker.controller)showUpdate(reg.waiting);
+    reg.addEventListener('updatefound',()=>{if(reg.installing)trackWorker(reg.installing);});
+    reg.update().catch(()=>{});
     document.addEventListener('visibilitychange',()=>{
-      if(document.visibilityState==='visible')reg.update();
+      if(document.visibilityState==='visible')reg.update().catch(()=>{});
     });
   });
-  // Dès qu'un nouveau service worker prend le contrôle, recharger une seule fois
-  let swRefreshing=false;
+  // Rechargement uniquement après un clic sur « Installer »
   navigator.serviceWorker.addEventListener('controllerchange',()=>{
-    if(swRefreshing)return;
-    swRefreshing=true;
-    window.location.reload();
+    if(updRequested)window.location.reload();
   });
 }
 </script>
